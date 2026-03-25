@@ -1,70 +1,52 @@
-import { Appearance } from 'react-native';
+import { useColorScheme } from 'react-native';
 
-const isDark = Appearance.getColorScheme() === 'dark';
-
-const light = {
-  // Backgrounds
+const lightColors = {
   background:    '#F5F5F7',
   surface:       '#FFFFFF',
   surfaceSecond: '#F0F0F5',
-
-  // Text
   primary:       '#0A0A0A',
   textPrimary:   '#0A0A0A',
   textSecondary: '#6B7280',
   textMuted:     '#9CA3AF',
-
-  // Border
   border:        '#E5E7EB',
   borderLight:   '#F3F4F6',
-
-  // Brand
   accent:        '#6366F1',
   accentLight:   '#EEF2FF',
-
-  // Status
   success:       '#22C55E',
   successLight:  '#DCFCE7',
   warning:       '#F59E0B',
   warningLight:  '#FEF9C3',
   danger:        '#EF4444',
   dangerLight:   '#FEE2E2',
-
-  // Chart
-  chart1:        '#6366F1',
-  chart2:        '#22C55E',
-  chart3:        '#F59E0B',
-  chart4:        '#EF4444',
 };
 
-const dark = {
+const darkColors = {
   background:    '#0A0A0A',
   surface:       '#1A1A1A',
   surfaceSecond: '#242424',
-
   primary:       '#F9FAFB',
   textPrimary:   '#F9FAFB',
   textSecondary: '#9CA3AF',
   textMuted:     '#6B7280',
-
   border:        '#2A2A2A',
   borderLight:   '#222222',
-
   accent:        '#818CF8',
   accentLight:   '#1E1B4B',
-
   success:       '#4ADE80',
   successLight:  '#052E16',
   warning:       '#FCD34D',
   warningLight:  '#422006',
   danger:        '#F87171',
   dangerLight:   '#450A0A',
-
-  chart1:        '#818CF8',
-  chart2:        '#4ADE80',
-  chart3:        '#FCD34D',
-  chart4:        '#F87171',
 };
 
-export const Colors = isDark ? dark : light;
-export const isDarkMode = isDark;
+export type ThemeColors = typeof lightColors;
+
+export const useTheme = () => {
+  const scheme = useColorScheme();
+  const isDark = scheme === 'dark';
+  return {
+    colors: isDark ? darkColors : lightColors,
+    isDark,
+  };
+};

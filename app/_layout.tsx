@@ -8,6 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import { AuthProvider } from '@/store/AuthContext';
 import { AppProvider } from '@/store/AppContext';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -18,10 +19,25 @@ const queryClient = new QueryClient({
   },
 });
 
+function AppContent() {
+  usePushNotifications(); // Register push notifications
+  return (
+    <>
+      <StatusBar style="auto" />
+      <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(member)" />
+        <Stack.Screen name="(staff)" />
+        <Stack.Screen name="(kiosk)" />
+      </Stack>
+      <FlashMessage position="top" />
+    </>
+  );
+}
+
 export default function RootLayout() {
-  useEffect(() => {
-    SplashScreen.hideAsync();
-  }, []);
+  useEffect(() => { SplashScreen.hideAsync(); }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -29,15 +45,7 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <AppProvider>
-              <StatusBar style="auto" />
-              <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
-                <Stack.Screen name="index" />
-                <Stack.Screen name="(auth)" />
-                <Stack.Screen name="(member)" />
-                <Stack.Screen name="(staff)" />
-                <Stack.Screen name="(kiosk)" />
-              </Stack>
-              <FlashMessage position="top" />
+              <AppContent />
             </AppProvider>
           </AuthProvider>
         </QueryClientProvider>

@@ -22,6 +22,15 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "3a3d8bed-a6f5-44b4-a574-1a4091b1bebc"
+      }
+    },
+    "owner": "yash-11"
   }
 }

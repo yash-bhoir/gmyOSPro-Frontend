@@ -1,20 +1,18 @@
 import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  useCallback,
+  createContext, useContext, useEffect,
+  useState, useCallback,
 } from 'react';
+import { router } from 'expo-router';
 import { authService } from '@/services/auth.service';
 import type { AuthUser, AuthState, SendOtpResponse } from '@/types/auth.types';
 
 const AuthContext = createContext<AuthState | null>(null);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser]       = useState<AuthUser | null>(null);
+  const [user, setUser]           = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // ── Restore session on app start ──
+  // Restore session on app start
   useEffect(() => {
     restoreSession();
   }, []);
@@ -27,13 +25,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (storedUser) {
           setUser(storedUser);
         } else {
-          // Token exists but no cached user — fetch from API
           const freshUser = await authService.getMe();
           setUser(freshUser);
         }
       }
     } catch {
-      // Token invalid or expired — clear everything
       await authService.logout();
       setUser(null);
     } finally {
@@ -45,17 +41,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return authService.sendOtp(phone);
   }, []);
 
-  const login = useCallback(
-    async (phone: string, otp: string, fullName?: string) => {
-      const result = await authService.verifyOtp(phone, otp, fullName);
-      setUser(result.user);
-    },
-    []
-  );
+  const login = useCallback(async (phone: string, otp: string, fullName?: string) => {
+    const result = await authService.verifyOtp(phone, otp, fullName);
+    setUser(result.user);
+  }, []);
 
   const logout = useCallback(async () => {
     await authService.logout();
     setUser(null);
+    // Redirect to login after clearing state
+    router.replace('/(auth)/login');
   }, []);
 
   const updateUser = useCallback((data: Partial<AuthUser>) => {
@@ -63,17 +58,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user,
-        isLoading,
-        sendOtp,
-        login,
-        logout,
-        updateUser,
-      }}
-    >
+    <AuthContext.Provider value={{
+      user,
+      isAuthenticated: !!user,
+      isLoading,
+      sendOtp,
+      login,
+      logout,
+      updateUser,
+    }}>
       {children}
     </AuthContext.Provider>
   );

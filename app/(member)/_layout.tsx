@@ -1,26 +1,67 @@
 import { Tabs } from 'expo-router';
-import { Colors } from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function MemberLayout() {
+  const { colors } = useTheme();
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.accent,
-        tabBarInactiveTintColor: Colors.textMuted,
+        tabBarActiveTintColor:   colors.accent,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
-          backgroundColor: Colors.surface,
-          borderTopColor: Colors.border,
-          height: 60,
+          backgroundColor: colors.surface,
+          borderTopColor:  colors.border,
+          borderTopWidth:  0.5,
+          height:          62,
+          paddingBottom:   8,
+          paddingTop:      4,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: 10, fontWeight: '600' },
       }}
     >
-      <Tabs.Screen name="index"      options={{ title: 'Home' }} />
-      <Tabs.Screen name="checkin"    options={{ title: 'Check In' }} />
-      <Tabs.Screen name="classes"    options={{ title: 'Classes' }} />
-      <Tabs.Screen name="membership" options={{ title: 'Membership' }} />
-      <Tabs.Screen name="profile"    options={{ title: 'Profile' }} />
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Home',
+          tabBarIcon: ({ color, size }) =>
+            <Ionicons name="home-outline" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="checkin"
+        options={{
+          title: 'Check In',
+          tabBarIcon: ({ color, size }) =>
+            <Ionicons name="qr-code-outline" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="membership"
+        options={{
+          title: 'Plan',
+          tabBarIcon: ({ color, size }) =>
+            <Ionicons name="card-outline" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="classes"
+        options={{
+          title: 'Classes',
+          tabBarIcon: ({ color, size }) =>
+            <Ionicons name="calendar-outline" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, size }) =>
+            <Ionicons name="person-outline" size={size} color={color} />,
+        }}
+      />
     </Tabs>
   );
 }

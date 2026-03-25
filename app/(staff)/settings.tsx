@@ -1,16 +1,21 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors } from '@/constants/colors';
+import { router } from 'expo-router';
+import { useTheme } from '@/hooks/useTheme';
 import { useAuthContext } from '@/store/AuthContext';
-import { useToast } from '@/hooks/useToast';
+import { useAppContext } from '@/store/AppContext';
 
 export default function SettingsScreen() {
+  const { colors } = useTheme();
   const { user, logout } = useAuthContext();
-  const toast = useToast();
-  const initials = user?.fullName?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
+  const { gym } = useAppContext();
+  const s = makeStyles(colors);
+
+  const initials = user?.fullName
+    ?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure?', [
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Logout', style: 'destructive', onPress: logout },
     ]);
@@ -18,101 +23,124 @@ export default function SettingsScreen() {
 
   const sections = [
     {
-      title: 'Gym Settings',
+      title: 'Gym Management',
       items: [
-        { icon: '🏢', label: 'Gym Profile',       action: () => toast.info('Edit gym profile coming soon') },
-        { icon: '📋', label: 'Membership Plans',  action: () => toast.info('Plans management coming soon') },
-        { icon: '⏰', label: 'Working Hours',      action: () => toast.info('Coming soon') },
-        { icon: '🏷', label: 'Fees & Charges',    action: () => toast.info('Coming soon') },
+        { icon: '📋', label: 'Membership Plans',    onPress: () => router.push('/(staff)/plans' as any) },
+        { icon: '👔', label: 'Staff Members',       onPress: () => router.push('/(staff)/staff' as any) },
+        { icon: '📢', label: 'Send Notification',   onPress: () => router.push('/(staff)/broadcast' as any) },
+        { icon: '📱', label: 'Kiosk Check-in Mode', onPress: () => router.replace('/(kiosk)/idle' as any) },
       ],
     },
     {
-      title: 'My Account',
+      title: 'Reports & Analytics',
       items: [
-        { icon: '👤', label: 'Edit Profile',       action: () => toast.info('Go to Profile tab to edit') },
-        { icon: '🔔', label: 'Notifications',      action: () => toast.info('Notification settings coming soon') },
-        { icon: '🔒', label: 'Change Password',    action: () => toast.info('Coming soon') },
+        { icon: '📈', label: 'View Reports',       onPress: () => router.push('/(staff)/reports' as any) },
+        { icon: '💰', label: 'Billing & Invoices', onPress: () => router.push('/(staff)/billing' as any) },
+      ],
+    },
+    {
+      title: 'Account',
+      items: [
+        { icon: '🔔', label: 'Notifications', onPress: () => Alert.alert('Notifications', 'Notification preferences coming soon') },
       ],
     },
     {
       title: 'Support',
       items: [
-        { icon: '❓', label: 'Help & FAQ',          action: () => toast.info('Contact support@gymos.in') },
-        { icon: '📞', label: 'Contact Support',    action: () => toast.info('Call +91-XXXX-XXXXXX') },
-        { icon: '⭐', label: 'Rate GymOS',          action: () => toast.success('Thank you for your support!') },
-        { icon: 'ℹ️', label: 'About',               action: () => toast.info('GymOS v1.0.0 — Built with ❤️') },
+        { icon: '❓', label: 'Help & FAQ',      onPress: () => Alert.alert('Support', 'Email: support@gymos.in') },
+        { icon: '📞', label: 'Contact Support', onPress: () => Alert.alert('Call Us', 'Mon–Sat 9am–6pm') },
+        { icon: '⭐', label: 'Rate GymOS',       onPress: () => Alert.alert('Thank you!', 'Your support means a lot 🙏') },
+        { icon: 'ℹ️', label: 'About GymOS v1.0', onPress: () => Alert.alert('GymOS v1.0.0', 'Built for Indian gyms with ❤️') },
       ],
     },
   ];
 
   return (
-    <SafeAreaView style={s.safe}>
+    <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-        <Text style={s.title}>Settings</Text>
+        <Text style={[s.title, { color: colors.primary }]}>Settings</Text>
 
-        {/* Profile summary */}
-        <View style={s.profileCard}>
-          <View style={s.avatar}><Text style={s.avatarText}>{initials}</Text></View>
-          <View>
-            <Text style={s.profileName}>{user?.fullName}</Text>
-            <Text style={s.profileRole}>{user?.role?.replace('_', ' ').toUpperCase()}</Text>
-            <Text style={s.profilePhone}>{user?.phone}</Text>
+        {/* Profile card */}
+        <View style={[s.profileCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={[s.avatar, { backgroundColor: colors.accent }]}>
+            <Text style={s.avatarText}>{initials}</Text>
           </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[s.profileName, { color: colors.primary }]}>{user?.fullName}</Text>
+            <Text style={[s.profileRole, { color: colors.accent }]}>
+              {user?.role?.replace('_', ' ').toUpperCase() ?? 'STAFF'}
+            </Text>
+            <Text style={[s.profilePhone, { color: colors.textSecondary }]}>{user?.phone}</Text>
+          </View>
+          {gym && (
+            <View style={[s.gymBadge, { backgroundColor: colors.accentLight }]}>
+              <Text style={[s.gymBadgeText, { color: colors.accent }]} numberOfLines={1}>
+                {gym.name}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Sections */}
         {sections.map((section) => (
-          <View key={section.title}>
-            <Text style={s.sectionTitle}>{section.title}</Text>
-            <View style={s.card}>
+          <View key={section.title} style={s.section}>
+            <Text style={[s.sectionTitle, { color: colors.textMuted }]}>
+              {section.title.toUpperCase()}
+            </Text>
+            <View style={[s.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               {section.items.map((item, i, arr) => (
                 <TouchableOpacity
                   key={item.label}
-                  style={[s.row, i === arr.length - 1 && { borderBottomWidth: 0 }]}
-                  onPress={item.action}
+                  style={[
+                    s.row,
+                    i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border },
+                  ]}
+                  onPress={item.onPress}
+                  activeOpacity={0.6}
                 >
                   <Text style={s.rowIcon}>{item.icon}</Text>
-                  <Text style={s.rowLabel}>{item.label}</Text>
-                  <Text style={s.rowArrow}>›</Text>
+                  <Text style={[s.rowLabel, { color: colors.primary }]}>{item.label}</Text>
+                  <Text style={[s.rowArrow, { color: colors.textMuted }]}>›</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
         ))}
 
-        <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}>
+        <TouchableOpacity
+          style={[s.logoutBtn, { backgroundColor: colors.danger }]}
+          onPress={handleLogout}
+        >
           <Text style={s.logoutText}>Logout</Text>
         </TouchableOpacity>
-        <Text style={s.version}>GymOS v1.0.0</Text>
+
+        <Text style={[s.version, { color: colors.textMuted }]}>GymOS v1.0.0</Text>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const s = StyleSheet.create({
-  safe:         { flex: 1, backgroundColor: Colors.background },
+const makeStyles = (colors: any) => StyleSheet.create({
+  safe:         { flex: 1 },
   scroll:       { padding: 16, paddingBottom: 40 },
-  title:        { fontSize: 22, fontWeight: '800', color: Colors.primary, marginBottom: 16 },
-  profileCard:  { flexDirection: 'row', alignItems: 'center', gap: 14,
-                  backgroundColor: Colors.surface, borderRadius: 16, padding: 16,
-                  borderWidth: 1, borderColor: Colors.border, marginBottom: 20 },
-  avatar:       { width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.accent,
-                  alignItems: 'center', justifyContent: 'center' },
+  title:        { fontSize: 22, fontWeight: '800', marginBottom: 16 },
+  profileCard:  { flexDirection: 'row', alignItems: 'center', gap: 12,
+                  borderRadius: 16, padding: 16, borderWidth: 1, marginBottom: 20 },
+  avatar:       { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
   avatarText:   { fontSize: 20, fontWeight: '700', color: '#fff' },
-  profileName:  { fontSize: 16, fontWeight: '700', color: Colors.primary, marginBottom: 2 },
-  profileRole:  { fontSize: 11, color: Colors.accent, fontWeight: '600', marginBottom: 2 },
-  profilePhone: { fontSize: 13, color: Colors.textSecondary },
-  sectionTitle: { fontSize: 12, fontWeight: '700', color: Colors.textMuted,
-                  textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 },
-  card:         { backgroundColor: Colors.surface, borderRadius: 14, borderWidth: 1,
-                  borderColor: Colors.border, marginBottom: 16 },
-  row:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14,
-                  borderBottomWidth: 1, borderBottomColor: Colors.border },
+  profileName:  { fontSize: 15, fontWeight: '700', marginBottom: 2 },
+  profileRole:  { fontSize: 10, fontWeight: '700', letterSpacing: 0.5, marginBottom: 2 },
+  profilePhone: { fontSize: 13 },
+  gymBadge:     { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, maxWidth: 100 },
+  gymBadgeText: { fontSize: 10, fontWeight: '700' },
+  section:      { marginBottom: 16 },
+  sectionTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, marginBottom: 8, paddingLeft: 4 },
+  sectionCard:  { borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
+  row:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
   rowIcon:      { fontSize: 18, marginRight: 12 },
-  rowLabel:     { flex: 1, fontSize: 14, fontWeight: '500', color: Colors.primary },
-  rowArrow:     { fontSize: 20, color: Colors.textMuted },
-  logoutBtn:    { backgroundColor: Colors.danger, borderRadius: 14, height: 54,
-                  alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  rowLabel:     { flex: 1, fontSize: 14, fontWeight: '500' },
+  rowArrow:     { fontSize: 20 },
+  logoutBtn:    { borderRadius: 14, height: 54, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   logoutText:   { color: '#fff', fontSize: 16, fontWeight: '700' },
-  version:      { textAlign: 'center', fontSize: 12, color: Colors.textMuted },
+  version:      { textAlign: 'center', fontSize: 12 },
 });
