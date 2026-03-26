@@ -1,131 +1,232 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import {
+  View, Text, StyleSheet, FlatList, TouchableOpacity,
+  ActivityIndicator, RefreshControl, Alert,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors } from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
+import { useAuthContext } from '@/store/AuthContext';
+import api from '@/services/api';
 
-const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-const SAMPLE_CLASSES = [
-  { id:'1', name:'Morning Yoga',    time:'06:30 AM', duration:'60 min', trainer:'Priya', capacity:15, enrolled:10, day:'Mon' },
-  { id:'2', name:'HIIT Cardio',     time:'07:30 AM', duration:'45 min', trainer:'Rahul', capacity:20, enrolled:18, day:'Mon' },
-  { id:'3', name:'Zumba',           time:'09:00 AM', duration:'60 min', trainer:'Sneha', capacity:25, enrolled:12, day:'Tue' },
-  { id:'4', name:'Weight Training', time:'06:00 PM', duration:'90 min', trainer:'Amit',  capacity:12, enrolled:12, day:'Wed' },
-  { id:'5', name:'Pilates',         time:'07:00 AM', duration:'60 min', trainer:'Neha',  capacity:10, enrolled:4,  day:'Thu' },
-  { id:'6', name:'CrossFit',        time:'06:00 AM', duration:'60 min', trainer:'Vikram',capacity:15, enrolled:9,  day:'Fri' },
-  { id:'7', name:'Weekend Flow',    time:'08:00 AM', duration:'75 min', trainer:'Priya', capacity:20, enrolled:14, day:'Sat' },
-];
+const fmt = (d: string) =>
+  new Date(d).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 
-export default function ClassesScreen() {
-  const [activeDay, setActiveDay] = useState(DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1]);
-  const [booked, setBooked]       = useState<string[]>([]);
+const fmtDate = (d: string) =>
+  new Date(d).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' });
+
+const DAY_SHORT: Record<string, string> = {
+  monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu',
+  friday: 'Fri', saturday: 'Sat', sunday: 'Sun',
+};
+
+export default function MemberClasses() {
+  const { colors, isDark } = useTheme();
+  const { user } = useAuthContext();
+  const s = makeStyles(colors);
+
+  const [allClasses, setAllClasses] = useState<any[]>([]);
+  const [myClasses, setMyClasses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [enrolling, setEnrolling] = useState<string | null>(null);
+  const [tab, setTab] = useState<'all' | 'mine'>('all');
+  const [gymId, setGymId] = useState<string | null>(null);
 
-  const classes = SAMPLE_CLASSES.filter(c => c.day === activeDay);
+  const fetchData = async () => {
+    try {
+      // Get member profile to find gymId
+      const profileRes = await api.get('/me/member-profile');
+      const gId = profileRes.data.data?.gymId;
+      setGymId(gId);
 
-  const toggleBook = (id: string) => {
-    setBooked(prev => prev.includes(id) ? prev.filter(b => b !== id) : [...prev, id]);
+      const [allRes, myRes] = await Promise.all([
+        gId ? api.get(`/gyms/${gId}/classes`) : Promise.resolve({ data: { data: [] } }),
+        api.get('/me/classes'),
+      ]);
+
+      setAllClasses(allRes.data.data || []);
+      setMyClasses(myRes.data.data || []);
+    } catch { } finally { setLoading(false); setRefreshing(false); }
   };
 
+  useEffect(() => { fetchData(); }, []);
+
+  const isEnrolled = (cls: any) =>
+    cls.enrolled?.some((id: any) => id === user?.id || id?._id === user?.id) ||
+    myClasses.some(mc => mc._id === cls._id);
+
+  const handleEnroll = async (cls: any) => {
+    if (!gymId) return;
+    const enrolled = isEnrolled(cls);
+    const action = enrolled ? 'Leave' : 'Join';
+
+    Alert.alert(action, `${action} "${cls.title}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: action, onPress: async () => {
+          setEnrolling(cls._id);
+          try {
+            if (enrolled) {
+              await api.delete(`/gyms/${gymId}/classes/${cls._id}/enroll`);
+              Alert.alert('Done', `You left "${cls.title}"`);
+            } else {
+              await api.post(`/gyms/${gymId}/classes/${cls._id}/enroll`);
+              Alert.alert('Enrolled!', `You joined "${cls.title}" 🎉`);
+            }
+            fetchData();
+          } catch (err: any) {
+            Alert.alert('Error', err?.response?.data?.message);
+          } finally { setEnrolling(null); }
+        }
+      },
+    ]);
+  };
+
+  const renderClass = ({ item }: any) => {
+    const enrolled = isEnrolled(item);
+    const spotsLeft = item.capacity - (item.enrolled?.length || 0);
+    const isFull = spotsLeft <= 0 && !enrolled;
+    const isLoading = enrolling === item._id;
+
+    return (
+      <View style={[s.card, { borderLeftColor: item.color || colors.accent }]}>
+        <View style={s.cardTop}>
+          <View style={{ flex: 1 }}>
+            <Text style={[s.cardTitle, { color: colors.primary }]}>{item.title}</Text>
+            <Text style={[s.cardTrainer, { color: colors.textSecondary }]}>👤 {item.trainer}</Text>
+          </View>
+          {enrolled && (
+            <View style={[s.enrolledBadge, { backgroundColor: colors.successLight }]}>
+              <Text style={[s.enrolledBadgeText, { color: colors.success }]}>✓ Enrolled</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={s.cardMeta}>
+          <Text style={[s.metaText, { color: colors.textSecondary }]}>📅 {fmtDate(item.startTime)}</Text>
+          <Text style={[s.metaText, { color: colors.textSecondary }]}>🕐 {fmt(item.startTime)} – {fmt(item.endTime)}</Text>
+          {item.location && <Text style={[s.metaText, { color: colors.textSecondary }]}>📍 {item.location}</Text>}
+          {item.isRecurring && item.days?.length > 0 && (
+            <Text style={[s.metaText, { color: colors.accent }]}>
+              🔄 {item.days.map((d: string) => DAY_SHORT[d]).join(', ')}
+            </Text>
+          )}
+          {item.description && <Text style={[s.metaText, { color: colors.textMuted }]}>{item.description}</Text>}
+        </View>
+
+        <View style={s.cardFooter}>
+          <Text style={[s.spotsText, { color: colors.textMuted }]}>
+            {isFull ? '🔴 Class full' : `${spotsLeft} spots left`}
+          </Text>
+          <TouchableOpacity
+            style={[
+              s.enrollBtn,
+              enrolled
+                ? { backgroundColor: colors.surfaceSecond, borderColor: colors.border }
+                : isFull
+                  ? { backgroundColor: colors.surfaceSecond, borderColor: colors.border, opacity: 0.5 }
+                  : { backgroundColor: colors.accent },
+            ]}
+            onPress={() => !isFull && handleEnroll(item)}
+            disabled={isFull && !enrolled || isLoading}
+          >
+            {isLoading
+              ? <ActivityIndicator color={enrolled ? colors.textSecondary : '#fff'} size="small" />
+              : <Text style={[s.enrollBtnText, { color: enrolled ? colors.textSecondary : '#fff' }]}>
+                {enrolled ? 'Leave Class' : 'Join Class'}
+              </Text>
+            }
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  const displayData = tab === 'mine' ? myClasses : allClasses;
+
   return (
-    <SafeAreaView style={s.safe}>
-      <ScrollView
-        contentContainerStyle={s.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => setRefreshing(false)} />}
-      >
-        <Text style={s.title}>Classes</Text>
-        <Text style={s.sub}>Book your session for the week</Text>
+    <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]}>
+      <View style={s.header}>
+        <Text style={[s.title, { color: colors.primary }]}>Classes</Text>
+      </View>
 
-        {/* Day tabs */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.dayScroll} contentContainerStyle={s.dayRow}>
-          {DAYS.map((d) => (
-            <TouchableOpacity key={d} style={[s.dayBtn, activeDay === d && s.dayBtnActive]} onPress={() => setActiveDay(d)}>
-              <Text style={[s.dayText, activeDay === d && s.dayTextActive]}>{d}</Text>
-              {SAMPLE_CLASSES.filter(c => c.day === d).length > 0 && (
-                <View style={[s.dayDot, activeDay === d && s.dayDotActive]} />
-              )}
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+      {/* Tab switcher */}
+      <View style={[s.tabRow, { backgroundColor: colors.surfaceSecond }]}>
+        <TouchableOpacity
+          style={[s.tab, tab === 'all' && { backgroundColor: colors.surface }]}
+          onPress={() => setTab('all')}
+        >
+          <Text style={[s.tabText, { color: tab === 'all' ? colors.primary : colors.textMuted }]}>
+            All Classes ({allClasses.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[s.tab, tab === 'mine' && { backgroundColor: colors.surface }]}
+          onPress={() => setTab('mine')}
+        >
+          <Text style={[s.tabText, { color: tab === 'mine' ? colors.primary : colors.textMuted }]}>
+            My Classes ({myClasses.length})
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-        {/* Classes */}
-        {classes.length === 0 ? (
-          <View style={s.empty}><Text style={s.emptyIcon}>🧘</Text><Text style={s.emptyText}>No classes on {activeDay}</Text></View>
-        ) : (
-          classes.map((cls) => {
-            const isFull   = cls.enrolled >= cls.capacity;
-            const isBooked = booked.includes(cls.id);
-            return (
-              <View key={cls.id} style={s.classCard}>
-                <View style={s.classTop}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.className}>{cls.name}</Text>
-                    <Text style={s.classMeta}>🕐 {cls.time} · ⏱ {cls.duration} · 👤 {cls.trainer}</Text>
-                  </View>
-                  <View style={[s.spotsBox, isFull && s.spotsBoxFull]}>
-                    <Text style={[s.spotsText, isFull && s.spotsTextFull]}>
-                      {isFull ? 'Full' : `${cls.capacity - cls.enrolled} spots`}
-                    </Text>
-                  </View>
-                </View>
-                <View style={s.classBottom}>
-                  <View style={s.capacityBar}>
-                    <View style={[s.capacityFill, {
-                      width: `${(cls.enrolled / cls.capacity) * 100}%` as any,
-                      backgroundColor: isFull ? Colors.danger : Colors.success,
-                    }]} />
-                  </View>
-                  <Text style={s.capacityText}>{cls.enrolled}/{cls.capacity} enrolled</Text>
-                </View>
-                <TouchableOpacity
-                  style={[s.bookBtn, isBooked && s.bookBtnBooked, isFull && !isBooked && s.bookBtnFull]}
-                  onPress={() => !isFull && toggleBook(cls.id)}
-                  disabled={isFull && !isBooked}
-                >
-                  <Text style={[s.bookText, isBooked && s.bookTextBooked]}>
-                    {isBooked ? '✓ Booked — Cancel' : isFull ? 'Class Full' : 'Book Class'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            );
-          })
-        )}
-      </ScrollView>
+      {loading ? (
+        <View style={s.center}><ActivityIndicator color={colors.accent} size="large" /></View>
+      ) : (
+        <FlatList
+          data={displayData}
+          renderItem={renderClass}
+          keyExtractor={i => i._id}
+          contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={colors.accent} />}
+          ListEmptyComponent={
+            <View style={s.empty}>
+              <Text style={{ fontSize: 44, marginBottom: 12 }}>🏋️</Text>
+              <Text style={[s.emptyTitle, { color: colors.primary }]}>
+                {tab === 'mine' ? "You haven't joined any classes" : "No classes available"}
+              </Text>
+              <Text style={[s.emptySub, { color: colors.textSecondary }]}>
+                {tab === 'mine' ? 'Switch to "All Classes" to browse and join' : 'Check back later for new classes'}
+              </Text>
+            </View>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
 
-const s = StyleSheet.create({
-  safe:          { flex: 1, backgroundColor: Colors.background },
-  scroll:        { padding: 20, paddingBottom: 32 },
-  title:         { fontSize: 24, fontWeight: '800', color: Colors.primary, marginBottom: 4 },
-  sub:           { fontSize: 13, color: Colors.textSecondary, marginBottom: 20 },
-  dayScroll:     { marginHorizontal: -4, marginBottom: 20 },
-  dayRow:        { paddingHorizontal: 4, gap: 8 },
-  dayBtn:        { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 20,
-                   backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, alignItems: 'center' },
-  dayBtnActive:  { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  dayText:       { fontSize: 13, fontWeight: '600', color: Colors.textSecondary },
-  dayTextActive: { color: '#fff' },
-  dayDot:        { width: 4, height: 4, borderRadius: 2, backgroundColor: Colors.accent, marginTop: 3 },
-  dayDotActive:  { backgroundColor: '#fff' },
-  empty:         { alignItems: 'center', padding: 40 },
-  emptyIcon:     { fontSize: 40, marginBottom: 12 },
-  emptyText:     { fontSize: 15, color: Colors.textSecondary },
-  classCard:     { backgroundColor: Colors.surface, borderRadius: 16, padding: 16, marginBottom: 12,
-                   borderWidth: 1, borderColor: Colors.border },
-  classTop:      { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12, gap: 10 },
-  className:     { fontSize: 16, fontWeight: '700', color: Colors.primary, marginBottom: 4 },
-  classMeta:     { fontSize: 12, color: Colors.textSecondary, lineHeight: 18 },
-  spotsBox:      { backgroundColor: Colors.successLight, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  spotsBoxFull:  { backgroundColor: Colors.dangerLight },
-  spotsText:     { fontSize: 11, fontWeight: '700', color: Colors.success },
-  spotsTextFull: { color: Colors.danger },
-  classBottom:   { marginBottom: 12 },
-  capacityBar:   { height: 4, backgroundColor: Colors.border, borderRadius: 2, marginBottom: 4 },
-  capacityFill:  { height: 4, borderRadius: 2 },
-  capacityText:  { fontSize: 11, color: Colors.textSecondary },
-  bookBtn:       { backgroundColor: Colors.accent, borderRadius: 10, height: 42, alignItems: 'center', justifyContent: 'center' },
-  bookBtnBooked: { backgroundColor: Colors.successLight, borderWidth: 1, borderColor: Colors.success },
-  bookBtnFull:   { backgroundColor: Colors.border },
-  bookText:      { fontSize: 14, fontWeight: '700', color: '#fff' },
-  bookTextBooked:{ color: Colors.success },
+const makeStyles = (c: any) => StyleSheet.create({
+  safe: { flex: 1 },
+  header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
+  title: { fontSize: 22, fontWeight: '800' },
+  tabRow: { flexDirection: 'row', marginHorizontal: 16, borderRadius: 14, padding: 4, marginBottom: 8 },
+  tab: { flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center' },
+  tabText: { fontSize: 13, fontWeight: '600' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  empty: { alignItems: 'center', paddingTop: 80 },
+  emptyTitle: { fontSize: 16, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
+  emptySub: { fontSize: 13, textAlign: 'center' },
+  card: {
+    borderRadius: 14, padding: 16, marginBottom: 12, borderLeftWidth: 4,
+    backgroundColor: c.surface, borderWidth: 1, borderColor: c.border
+  },
+  cardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
+  cardTitle: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  cardTrainer: { fontSize: 13 },
+  enrolledBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  enrolledBadgeText: { fontSize: 11, fontWeight: '700' },
+  cardMeta: { gap: 4, marginBottom: 12 },
+  metaText: { fontSize: 12 },
+  cardFooter: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingTop: 10, borderTopWidth: 1, borderTopColor: c.border
+  },
+  spotsText: { fontSize: 12 },
+  enrollBtn: {
+    paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10,
+    borderWidth: 1, borderColor: 'transparent', minWidth: 100, alignItems: 'center'
+  },
+  enrollBtnText: { fontSize: 13, fontWeight: '700' },
 });

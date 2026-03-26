@@ -6,41 +6,33 @@ import { useAppContext } from '@/store/AppContext';
 import { Colors } from '@/constants/colors';
 import api from '@/services/api';
 
-type Destination =
-  | '/(admin)'
-  | '/(staff)/dashboard'
-  | '/(staff)/onboarding'
-  | '/(member)';
-
 export default function Index() {
   const { isAuthenticated, isLoading, user } = useAuthContext();
   const { setGym } = useAppContext();
   const [checking, setChecking]       = useState(true);
-  const [destination, setDestination] = useState<Destination | null>(null);
+  const [destination, setDestination] = useState<string | null>(null);
 
   useEffect(() => {
     if (isLoading) return;
     if (!isAuthenticated) { setChecking(false); return; }
-
     determineDestination();
   }, [isAuthenticated, isLoading, user]);
 
   const determineDestination = async () => {
     const role = user?.role || 'member';
-    // ── Super admin → admin dashboard directly ──
+
+    // Super admin → admin dashboard
     if (role === 'super_admin') {
       setDestination('/(admin)');
       setChecking(false);
       return;
     }
 
-    // ── Check if user is staff at any gym ──
+    // Check if user is staff at any gym
     try {
       const staffRes = await api.get('/me/staff-profile');
       if (staffRes.data.data) {
-        const staffProfile = staffRes.data.data;
-        // Load their gym into context
-        const gym = staffProfile.gymId;
+        const gym = staffRes.data.data.gymId;
         if (gym) setGym(gym);
         setDestination('/(staff)/dashboard');
         setChecking(false);
@@ -48,15 +40,30 @@ export default function Index() {
       }
     } catch {}
 
-    // ── Check if user owns a gym ──
+    // Check if user owns a gym
     try {
       const gymRes = await api.get('/gyms/my');
       if (gymRes.data.data) {
         const gym = gymRes.data.data;
         setGym(gym);
-        // Gym exists but setup not complete → onboarding
+        // ── KEY FIX: gym exists → always go to dashboard ──
+        // Only show onboarding if gym exists but setup is NOT complete
+        // AND the gym was JUST created (no members, no plans)
         if (!gym.isSetupComplete) {
-          setDestination('/(staff)/onboarding');
+          // Check if gym has any plans — if yes, skip onboarding
+          try {
+            const plansRes = await api.get(`/gyms/${gym._id}/plans`);
+            const plans = plansRes.data.data || [];
+            if (plans.length > 0) {
+              // Has plans = was set up externally (by admin) — go to dashboard
+              setDestination('/(staff)/dashboard');
+            } else {
+              // No plans = truly new gym, show onboarding
+              setDestination('/(staff)/onboarding');
+            }
+          } catch {
+            setDestination('/(staff)/dashboard');
+          }
         } else {
           setDestination('/(staff)/dashboard');
         }
@@ -65,14 +72,14 @@ export default function Index() {
       }
     } catch {}
 
-    // ── If systemRole is gym_owner but no gym yet → onboarding ──
+    // gym_owner role but no gym yet → onboarding
     if (role === 'gym_owner') {
       setDestination('/(staff)/onboarding');
       setChecking(false);
       return;
     }
 
-    // ── Default → member app ──
+    // Default → member app
     setDestination('/(member)');
     setChecking(false);
   };
@@ -86,8 +93,7 @@ export default function Index() {
   }
 
   if (!isAuthenticated) return <Redirect href="/(auth)/login" />;
-  if (destination)      return <Redirect href={destination} />;
-
+  if (destination)      return <Redirect href={destination as any} />;
   return <Redirect href="/(member)" />;
 }
 

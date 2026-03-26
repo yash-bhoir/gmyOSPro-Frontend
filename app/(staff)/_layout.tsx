@@ -1,9 +1,11 @@
 import { Tabs } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
+import { useStaffRole } from '@/hooks/useStaffRole';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function StaffLayout() {
   const { colors } = useTheme();
+  const { permissions } = useStaffRole();
 
   return (
     <Tabs
@@ -26,40 +28,38 @@ export default function StaffLayout() {
         name="dashboard"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size }) =>
-            <Ionicons name="home-outline" size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="members"
         options={{
           title: 'Members',
-          tabBarIcon: ({ color, size }) =>
-            <Ionicons name="people-outline" size={size} color={color} />,
+          href: permissions.canViewMembers ? undefined : null,
+          tabBarIcon: ({ color, size }) => <Ionicons name="people-outline" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="billing"
         options={{
           title: 'Billing',
-          tabBarIcon: ({ color, size }) =>
-            <Ionicons name="cash-outline" size={size} color={color} />,
+          href: permissions.canViewBilling ? undefined : null,
+          tabBarIcon: ({ color, size }) => <Ionicons name="cash-outline" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="reports"
         options={{
           title: 'Reports',
-          tabBarIcon: ({ color, size }) =>
-            <Ionicons name="bar-chart-outline" size={size} color={color} />,
+          href: permissions.canViewReports ? undefined : null,
+          tabBarIcon: ({ color, size }) => <Ionicons name="bar-chart-outline" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ color, size }) =>
-            <Ionicons name="settings-outline" size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <Ionicons name="settings-outline" size={size} color={color} />,
         }}
       />
       {/* Hidden screens */}

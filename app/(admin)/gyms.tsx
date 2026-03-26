@@ -1,188 +1,182 @@
 import { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, RefreshControl, TextInput, Alert,
+  ActivityIndicator, RefreshControl, TextInput, Alert, ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router, useLocalSearchParams } from 'expo-router';
 import api from '@/services/api';
 
 const STATUS_COLORS: Record<string, string> = {
-  active: '#22C55E', trial: '#F59E0B',
-  suspended: '#EF4444', churned: '#6B7280',
+  active: '#22C55E', trial: '#F59E0B', suspended: '#EF4444', churned: '#6B7280',
 };
-const PLAN_COLORS: Record<string, string> = {
-  starter: '#6366F1', growth: '#F59E0B', enterprise: '#22C55E',
-};
-const fmt = (d?: string) => d
-  ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-  : '—';
+
 const fmtCurrency = (n: number) =>
   n >= 100000 ? `₹${(n/100000).toFixed(1)}L`
   : n >= 1000  ? `₹${(n/1000).toFixed(1)}K`
   : `₹${n}`;
 
 export default function AdminGyms() {
-  const [gyms, setGyms]         = useState<any[]>([]);
-  const [loading, setLoading]   = useState(true);
+  const params = useLocalSearchParams<{ filter?: string }>();
+  const insets = useSafeAreaInsets();
+  const [gyms, setGyms]             = useState<any[]>([]);
+  const [total, setTotal]           = useState(0);
+  const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [search, setSearch]     = useState('');
-  const [filter, setFilter]     = useState('all');
+  const [search, setSearch]         = useState('');
+  const [statusFilter, setStatusFilter] = useState(params.filter || '');
 
   const fetchGyms = async () => {
     try {
-      const params: any = {};
-      if (filter !== 'all') params.status = filter;
-      if (search) params.search = search;
-      const { data } = await api.get('/admin/gyms', { params });
+      const p: any = { limit: 100 };
+      if (statusFilter) p.status = statusFilter;
+      if (search)       p.search = search;
+      const { data } = await api.get('/admin/gyms', { params: p });
       setGyms(data.data?.items || []);
+      setTotal(data.data?.total || 0);
     } catch {} finally { setLoading(false); setRefreshing(false); }
   };
 
-  useEffect(() => { fetchGyms(); }, [filter, search]);
+  useEffect(() => { fetchGyms(); }, [statusFilter, search]);
 
-  const handleStatusChange = (gym: any) => {
-    const options = ['active', 'trial', 'suspended', 'churned']
-      .filter(s => s !== gym.planStatus)
-      .map(s => ({
-        text: s.charAt(0).toUpperCase() + s.slice(1),
-        style: s === 'suspended' ? 'destructive' as const : 'default' as const,
-        onPress: async () => {
-          try {
-            await api.patch(`/admin/gyms/${gym._id}/status`, { status: s });
-            fetchGyms();
-          } catch {}
-        },
-      }));
-    Alert.alert(`Update ${gym.name}`, 'Change gym status to:', [
-      ...options, { text: 'Cancel', style: 'cancel' },
-    ]);
-  };
-
-  const handlePlanChange = (gym: any) => {
-    Alert.alert(`${gym.name} Plan`, 'Change subscription tier:', [
-      ...['starter', 'growth', 'enterprise'].map(p => ({
-        text: p.charAt(0).toUpperCase() + p.slice(1),
-        onPress: async () => {
-          try {
-            await api.patch(`/admin/gyms/${gym._id}/plan`, { planTier: p });
-            fetchGyms();
-          } catch {}
-        },
-      })),
+  const handleQuickStatus = (gym: any, status: string) => {
+    const label = status === 'active' ? 'Activate' : 'Suspend';
+    Alert.alert(label, `${label} "${gym.name}"?`, [
       { text: 'Cancel', style: 'cancel' },
+      { text: label, style: status === 'suspended' ? 'destructive' : 'default',
+        onPress: async () => {
+          try {
+            await api.patch(`/admin/gyms/${gym._id}/status`, { status });
+            fetchGyms();
+          } catch (err: any) {
+            Alert.alert('Error', err?.response?.data?.message);
+          }
+        },
+      },
     ]);
   };
 
   const renderGym = ({ item }: any) => {
-    const owner = item.ownerId || {};
-    return (
-      <View style={s.gymCard}>
-        <TouchableOpacity
-          style={s.gymTop}
-          onPress={() => router.push({ pathname: '/(admin)/gym-detail' as any, params: { gymId: item._id } })}
-        >
-          <View style={s.gymLeft}>
-            <View style={s.gymAvatar}>
-              <Text style={s.gymAvatarText}>{item.name?.charAt(0) || 'G'}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.gymName}>{item.name}</Text>
-              <Text style={s.gymCity}>{item.city} · {owner.phone}</Text>
-              <Text style={s.gymOwner}>Owner: {owner.fullName}</Text>
-            </View>
-          </View>
-          <View style={s.gymRight}>
-            <View style={[s.statusBadge, { backgroundColor: STATUS_COLORS[item.planStatus] + '22' }]}>
-              <Text style={[s.statusText, { color: STATUS_COLORS[item.planStatus] }]}>
-                {item.planStatus?.toUpperCase()}
-              </Text>
-            </View>
-            <Text style={s.gymArrow}>›</Text>
-          </View>
-        </TouchableOpacity>
+    const statusColor = STATUS_COLORS[item.planStatus] || '#6B7280';
+    const owner       = item.ownerId || {};
+    const isSuspended = item.planStatus === 'suspended';
 
-        {/* Stats row */}
+    return (
+      <TouchableOpacity
+        style={s.gymCard}
+        onPress={() => router.push({ pathname: '/(admin)/gym-detail', params: { gymId: item._id } } as any)}
+        activeOpacity={0.75}
+      >
+        <View style={s.gymTop}>
+          <View style={[s.gymAvatar, { backgroundColor: statusColor + '22' }]}>
+            <Text style={[s.gymAvatarText, { color: statusColor }]}>{item.name?.charAt(0)}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.gymName} numberOfLines={1}>{item.name}</Text>
+            <Text style={s.gymCity}>{item.city} · {owner.phone}</Text>
+          </View>
+          <View style={[s.statusBadge, { backgroundColor: statusColor + '22' }]}>
+            <Text style={[s.statusText, { color: statusColor }]}>{item.planStatus?.toUpperCase()}</Text>
+          </View>
+        </View>
+
         <View style={s.gymStats}>
           <View style={s.gymStat}>
             <Text style={s.gymStatValue}>{item.memberCount ?? 0}</Text>
             <Text style={s.gymStatLabel}>Members</Text>
           </View>
           <View style={s.gymStat}>
-            <Text style={s.gymStatValue}>{fmtCurrency(item.totalRevenue ?? 0)}</Text>
+            <Text style={[s.gymStatValue, { color: '#F59E0B' }]}>{fmtCurrency(item.totalRevenue ?? 0)}</Text>
             <Text style={s.gymStatLabel}>Revenue</Text>
           </View>
           <View style={s.gymStat}>
-            <View style={[s.planBadge, { backgroundColor: PLAN_COLORS[item.planTier] + '22' }]}>
-              <Text style={[s.planText, { color: PLAN_COLORS[item.planTier] }]}>
-                {item.planTier?.toUpperCase()}
-              </Text>
-            </View>
+            <Text style={s.gymStatValue}>{item.planTier}</Text>
             <Text style={s.gymStatLabel}>Plan</Text>
-          </View>
-          <View style={s.gymStat}>
-            <Text style={s.gymStatValue}>{fmt(item.createdAt)}</Text>
-            <Text style={s.gymStatLabel}>Joined</Text>
           </View>
         </View>
 
-        {/* Action buttons */}
         <View style={s.gymActions}>
-          <TouchableOpacity style={s.gymActionBtn} onPress={() => handleStatusChange(item)}>
-            <Text style={s.gymActionText}>Change Status</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.gymActionBtn} onPress={() => handlePlanChange(item)}>
-            <Text style={s.gymActionText}>Change Plan</Text>
-          </TouchableOpacity>
+          {isSuspended ? (
+            <TouchableOpacity style={s.activateBtn} onPress={() => handleQuickStatus(item, 'active')}>
+              <Text style={s.activateBtnText}>✓ Activate</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={s.suspendBtn} onPress={() => handleQuickStatus(item, 'suspended')}>
+              <Text style={s.suspendBtnText}>Suspend</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
-            style={[s.gymActionBtn, item.planStatus === 'suspended' ? s.activateBtn : s.suspendBtn]}
-            onPress={async () => {
-              const newStatus = item.planStatus === 'suspended' ? 'active' : 'suspended';
-              try {
-                await api.patch(`/admin/gyms/${item._id}/status`, { status: newStatus });
-                fetchGyms();
-              } catch {}
-            }}
+            style={s.detailBtn}
+            onPress={() => router.push({ pathname: '/(admin)/gym-detail', params: { gymId: item._id } } as any)}
           >
-            <Text style={[s.gymActionText, { color: item.planStatus === 'suspended' ? '#22C55E' : '#EF4444' }]}>
-              {item.planStatus === 'suspended' ? 'Activate' : 'Suspend'}
-            </Text>
+            <Text style={s.detailBtnText}>Details →</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
   return (
-    <SafeAreaView style={s.safe}>
-      <View style={s.container}>
-        <Text style={s.title}>All Gyms</Text>
+    <SafeAreaView style={s.safe} edges={['top']}>
 
-        {/* Search */}
-        <View style={s.searchRow}>
-          <Text style={s.searchIcon}>🔍</Text>
+      {/* Header — has own padding */}
+      <View style={s.header}>
+        <View>
+          <Text style={s.title}>Gyms</Text>
+          <Text style={s.subtitle}>{total} total</Text>
+        </View>
+      </View>
+
+      {/* Filter chips — full width, padding inside content */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={s.filterRow}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingRight: 24 }}
+      >
+        {[
+          { val: '',          label: `All (${total})` },
+          { val: 'trial',     label: 'Trial' },
+          { val: 'active',    label: 'Active' },
+          { val: 'suspended', label: 'Suspended' },
+          { val: 'churned',   label: 'Churned' },
+        ].map(f => (
+          <TouchableOpacity
+            key={f.val}
+            style={[
+              s.chip,
+              statusFilter === f.val && s.chipActive,
+              f.val === 'suspended' && statusFilter === 'suspended' && { backgroundColor: '#EF444420', borderColor: '#EF4444' },
+            ]}
+            onPress={() => setStatusFilter(f.val)}
+          >
+            <Text style={[
+              s.chipText,
+              statusFilter === f.val && s.chipTextActive,
+              f.val === 'suspended' && statusFilter === 'suspended' && { color: '#EF4444' },
+            ]}>
+              {f.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* Body — search + list with padding */}
+      <View style={s.body}>
+        <View style={s.searchBox}>
+          <Text style={{ fontSize: 14, marginRight: 8 }}>🔍</Text>
           <TextInput
             style={s.searchInput}
             value={search}
             onChangeText={setSearch}
             placeholder="Search gym name..."
-            placeholderTextColor="rgba(255,255,255,0.3)"
+            placeholderTextColor="rgba(255,255,255,0.25)"
           />
-        </View>
-
-        {/* Filter tabs */}
-        <View style={s.filterRow}>
-          {['all', 'active', 'trial', 'suspended'].map(f => (
-            <TouchableOpacity
-              key={f}
-              style={[s.filterBtn, filter === f && s.filterBtnActive]}
-              onPress={() => setFilter(f)}
-            >
-              <Text style={[s.filterText, filter === f && s.filterTextActive]}>
-                {f.charAt(0).toUpperCase() + f.slice(1)}
-              </Text>
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')}>
+              <Text style={s.clearBtn}>✕</Text>
             </TouchableOpacity>
-          ))}
+          )}
         </View>
 
         {loading ? (
@@ -192,12 +186,14 @@ export default function AdminGyms() {
             data={gyms}
             renderItem={renderGym}
             keyExtractor={i => i._id}
-            contentContainerStyle={s.list}
+            contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
             showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchGyms(); }} tintColor="#F59E0B" />}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchGyms(); }} tintColor="#F59E0B" />
+            }
             ListEmptyComponent={
               <View style={s.empty}>
-                <Text style={s.emptyIcon}>🏢</Text>
+                <Text style={{ fontSize: 36, marginBottom: 10 }}>🏢</Text>
                 <Text style={s.emptyText}>No gyms found</Text>
               </View>
             }
@@ -209,50 +205,48 @@ export default function AdminGyms() {
 }
 
 const s = StyleSheet.create({
-  safe:           { flex: 1, backgroundColor: '#0A0A0A' },
-  container:      { flex: 1, padding: 16 },
-  title:          { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 14 },
-  searchRow:      { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.07)',
-                    borderRadius: 12, paddingHorizontal: 12, height: 46, marginBottom: 12,
-                    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  searchIcon:     { fontSize: 15, marginRight: 8 },
-  searchInput:    { flex: 1, fontSize: 14, color: '#fff' },
-  filterRow:      { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  filterBtn:      { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
-                    backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  filterBtnActive:{ backgroundColor: '#F59E0B', borderColor: '#F59E0B' },
-  filterText:     { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.5)' },
-  filterTextActive:{ color: '#000' },
-  center:         { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  list:           { paddingBottom: 20 },
-  gymCard:        { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, marginBottom: 12,
-                    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
-  gymTop:         { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', padding: 14 },
-  gymLeft:        { flexDirection: 'row', alignItems: 'flex-start', gap: 12, flex: 1 },
-  gymAvatar:      { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F59E0B',
-                    alignItems: 'center', justifyContent: 'center' },
-  gymAvatarText:  { fontSize: 18, fontWeight: '800', color: '#000' },
-  gymName:        { fontSize: 15, fontWeight: '700', color: '#fff', marginBottom: 2 },
-  gymCity:        { fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 2 },
-  gymOwner:       { fontSize: 11, color: 'rgba(255,255,255,0.35)' },
-  gymRight:       { alignItems: 'flex-end', gap: 6 },
-  statusBadge:    { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  statusText:     { fontSize: 10, fontWeight: '700' },
-  gymArrow:       { fontSize: 18, color: 'rgba(255,255,255,0.3)' },
-  gymStats:       { flexDirection: 'row', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)',
-                    paddingHorizontal: 14, paddingVertical: 10 },
-  gymStat:        { flex: 1, alignItems: 'center' },
-  gymStatValue:   { fontSize: 13, fontWeight: '700', color: '#fff', marginBottom: 2 },
-  gymStatLabel:   { fontSize: 10, color: 'rgba(255,255,255,0.4)' },
-  planBadge:      { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  planText:       { fontSize: 9, fontWeight: '700' },
-  gymActions:     { flexDirection: 'row', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' },
-  gymActionBtn:   { flex: 1, paddingVertical: 10, alignItems: 'center',
-                    borderRightWidth: 1, borderRightColor: 'rgba(255,255,255,0.06)' },
-  gymActionText:  { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.6)' },
-  suspendBtn:     {},
-  activateBtn:    {},
-  empty:          { alignItems: 'center', paddingTop: 60 },
-  emptyIcon:      { fontSize: 40, marginBottom: 12 },
-  emptyText:      { fontSize: 16, color: 'rgba(255,255,255,0.4)' },
+  safe:            { flex: 1, backgroundColor: '#0A0A0A' },
+  header:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+                     paddingHorizontal: 16, paddingTop: 16, marginBottom: 12 },
+  title:           { fontSize: 24, fontWeight: '800', color: '#fff' },
+  subtitle:        { fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 3 },
+  filterRow:       { flexGrow: 0, marginBottom: 12 },
+  chip:            { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginRight: 8,
+                     backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  chipActive:      { backgroundColor: '#F59E0B', borderColor: '#F59E0B' },
+  chipText:        { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.5)' },
+  chipTextActive:  { color: '#000' },
+  body:            { flex: 1, paddingHorizontal: 16 },
+  searchBox:       { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.07)',
+                     borderRadius: 14, paddingHorizontal: 14, height: 48, marginBottom: 14,
+                     borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  searchInput:     { flex: 1, fontSize: 14, color: '#fff' },
+  clearBtn:        { color: 'rgba(255,255,255,0.4)', fontSize: 15, paddingLeft: 8 },
+  center:          { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  empty:           { alignItems: 'center', paddingTop: 80 },
+  emptyText:       { fontSize: 15, color: 'rgba(255,255,255,0.3)' },
+  gymCard:         { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 14,
+                     marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  gymTop:          { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+  gymAvatar:       { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  gymAvatarText:   { fontSize: 20, fontWeight: '800' },
+  gymName:         { fontSize: 15, fontWeight: '700', color: '#fff', marginBottom: 2 },
+  gymCity:         { fontSize: 12, color: 'rgba(255,255,255,0.4)' },
+  statusBadge:     { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  statusText:      { fontSize: 10, fontWeight: '700' },
+  gymStats:        { flexDirection: 'row', marginBottom: 12, paddingTop: 10,
+                     borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' },
+  gymStat:         { flex: 1, alignItems: 'center' },
+  gymStatValue:    { fontSize: 16, fontWeight: '700', color: '#fff', marginBottom: 2 },
+  gymStatLabel:    { fontSize: 10, color: 'rgba(255,255,255,0.35)' },
+  gymActions:      { flexDirection: 'row', gap: 8 },
+  activateBtn:     { flex: 1, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
+                     backgroundColor: '#22C55E20', borderWidth: 1, borderColor: '#22C55E' },
+  activateBtnText: { fontSize: 12, fontWeight: '700', color: '#22C55E' },
+  suspendBtn:      { flex: 1, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
+                     backgroundColor: '#EF444415', borderWidth: 1, borderColor: '#EF444440' },
+  suspendBtnText:  { fontSize: 12, fontWeight: '700', color: '#EF4444' },
+  detailBtn:       { flex: 1, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
+                     borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
+  detailBtnText:   { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.6)' },
 });
