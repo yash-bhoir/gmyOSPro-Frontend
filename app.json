@@ -3,22 +3,67 @@
     "name": "GymOS",
     "slug": "gymos",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "orientation": "portrait",
     "scheme": "gymos",
     "userInterfaceStyle": "automatic",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0A0A"
+    },
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.gymos.app"
+      "supportsTablet": false,
+      "bundleIdentifier": "com.gymos.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "GymOS needs camera access to scan member QR codes at check-in.",
+        "NSPhotoLibraryUsageDescription": "GymOS needs photo library access to upload gym logo."
+      }
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png",
         "backgroundColor": "#0A0A0A"
       },
-      "package": "com.gymos.app"
+      "package": "com.gymos.app",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.VIBRATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE"
+      ]
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-barcode-scanner",
+        {
+          "cameraPermission": "GymOS needs camera access to scan member QR codes."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "GymOS needs photo library access to upload gym logo.",
+          "cameraPermission": "GymOS needs camera access to capture gym logo."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#6366F1",
+          "defaultChannel": "default"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
@@ -31,6 +76,10 @@
         "projectId": "3a3d8bed-a6f5-44b4-a574-1a4091b1bebc"
       }
     },
-    "owner": "yash-11"
+    "owner": "yash-11",
+    "updates": {
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/3a3d8bed-a6f5-44b4-a574-1a4091b1bebc"
+    }
   }
 }
