@@ -3,9 +3,6 @@
     "name": "GymOS",
     "slug": "gymos",
     "version": "1.0.0",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
     "orientation": "portrait",
     "scheme": "gymos",
     "userInterfaceStyle": "automatic",
@@ -35,7 +32,6 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.VIBRATE",
-        "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE"
       ]
@@ -43,12 +39,6 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      [
-        "expo-barcode-scanner",
-        {
-          "cameraPermission": "GymOS needs camera access to scan member QR codes."
-        }
-      ],
       [
         "expo-image-picker",
         {
@@ -76,10 +66,6 @@
         "projectId": "3a3d8bed-a6f5-44b4-a574-1a4091b1bebc"
       }
     },
-    "owner": "yash-11",
-    "updates": {
-      "fallbackToCacheTimeout": 0,
-      "url": "https://u.expo.dev/3a3d8bed-a6f5-44b4-a574-1a4091b1bebc"
-    }
+    "owner": "yash-11"
   }
 }
