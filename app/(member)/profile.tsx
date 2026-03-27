@@ -4,6 +4,7 @@ import {
   TextInput, ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthContext } from '@/store/AuthContext';
 import { useToast } from '@/hooks/useToast';
@@ -136,7 +137,7 @@ export default function ProfileScreen() {
         <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[s.cardTitle, { color: colors.textMuted }]}>Account</Text>
           {[
-            { icon: '🧾', label: 'My Invoices',    onPress: () => Alert.alert('Invoices', 'Payment history will be available soon') },
+            { icon: '🧾', label: 'My Invoices',    onPress: () => router.push('/(member)/invoices' as any) },
             { icon: '🔔', label: 'Notifications',  onPress: () => Alert.alert('Notifications', 'Notification settings coming soon') },
             { icon: '❓', label: 'Help & Support', onPress: () => Alert.alert('Support', 'Email: support@gymos.in') },
             { icon: '⭐', label: 'Rate the App',    onPress: () => Alert.alert('Thank you!', 'Your support means a lot 🙏') },

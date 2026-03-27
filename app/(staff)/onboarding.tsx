@@ -23,17 +23,20 @@ const DEFAULT_PLANS = [
 export default function OnboardingScreen() {
   const { colors } = useTheme();
   const { user } = useAuthContext();
-  const { setGym } = useAppContext();
+  const { gym, setGym } = useAppContext();
   const toast = useToast();
   const s = makeStyles(colors);
 
-  const [step, setStep]           = useState(0);
+  // If gym already exists (admin-created, setup incomplete) start at plans step
+  const initialStep = gym?._id ? 1 : 0;
+
+  const [step, setStep]           = useState(initialStep);
   const [isLoading, setIsLoading] = useState(false);
-  const [gymId, setGymId]         = useState('');
-  const [gymName, setGymName]     = useState('');
-  const [gymPhone, setGymPhone]   = useState('');
-  const [gymCity, setGymCity]     = useState('');
-  const [gymAddress, setGymAddress] = useState('');
+  const [gymId, setGymId]         = useState(gym?._id || '');
+  const [gymName, setGymName]     = useState(gym?.name || '');
+  const [gymPhone, setGymPhone]   = useState(gym?.phone || '');
+  const [gymCity, setGymCity]     = useState(gym?.city || '');
+  const [gymAddress, setGymAddress] = useState(gym?.address || '');
   const [plans, setPlans]         = useState(DEFAULT_PLANS);
 
   // If not a gym_owner role — redirect away immediately
@@ -232,6 +235,13 @@ export default function OnboardingScreen() {
                 Your gym <Text style={[s.doneGymName, { color: colors.primary }]}>{gymName}</Text> is ready.{'\n'}
                 Start adding members and managing your gym.
               </Text>
+              <View style={[s.trialBanner, { backgroundColor: colors.accentLight, borderColor: colors.accent }]}>
+                <Text style={[s.trialIcon]}>🎁</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.trialTitle, { color: colors.accent }]}>30-Day Free Trial Active</Text>
+                  <Text style={[s.trialSub, { color: colors.textSecondary }]}>Enjoy full access to all features. No payment required during trial.</Text>
+                </View>
+              </View>
               <View style={[s.doneTips, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 {['✓ Gym profile created', '✓ Membership plans configured', '✓ Ready to add members'].map(tip => (
                   <Text key={tip} style={[s.doneTip, { color: colors.success }]}>{tip}</Text>
@@ -286,6 +296,10 @@ const makeStyles = (c: any) => StyleSheet.create({
   doneTitle:      { fontSize: 28, fontWeight: '800', marginBottom: 10 },
   doneSub:        { fontSize: 15, textAlign: 'center', lineHeight: 24, marginBottom: 24 },
   doneGymName:    { fontWeight: '700' },
+  trialBanner:    { width: '100%', flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, padding: 16, borderWidth: 1, marginBottom: 16 },
+  trialIcon:      { fontSize: 28 },
+  trialTitle:     { fontSize: 14, fontWeight: '700', marginBottom: 2 },
+  trialSub:       { fontSize: 12, lineHeight: 17 },
   doneTips:       { width: '100%', borderRadius: 14, padding: 20, borderWidth: 1, marginBottom: 28, gap: 10 },
   doneTip:        { fontSize: 14, fontWeight: '500' },
 });

@@ -3,15 +3,18 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Activity
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Colors } from '@/constants/colors';
+import { useAppContext } from '@/store/AppContext';
+import { useStaffRole } from '@/hooks/useStaffRole';
 import api from '@/services/api';
 
-const GYM_ID = 'default';
 const STATUS_COLORS: Record<string, string> = {
   active: Colors.success, expired: Colors.danger,
   frozen: Colors.warning, cancelled: Colors.textMuted,
 };
 
 export default function MembersScreen() {
+  const { gymId } = useAppContext();
+  const { permissions } = useStaffRole();
   const [members, setMembers]     = useState<any[]>([]);
   const [loading, setLoading]     = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -19,11 +22,12 @@ export default function MembersScreen() {
   const [filter, setFilter]       = useState('all');
 
   const fetchMembers = async () => {
+    if (!gymId) { setLoading(false); return; }
     try {
       const params: any = {};
       if (filter !== 'all') params.status = filter;
       if (search) params.search = search;
-      const { data } = await api.get(`/gyms/${GYM_ID}/members`, { params });
+      const { data } = await api.get(`/gyms/${gymId}/members`, { params });
       setMembers(data.data?.items || []);
     } catch {} finally { setLoading(false); setRefreshing(false); }
   };
@@ -62,9 +66,11 @@ export default function MembersScreen() {
         {/* Header */}
         <View style={s.header}>
           <Text style={s.title}>Members</Text>
-          <TouchableOpacity style={s.addBtn} onPress={() => router.push('/(staff)/add-member')}>
-            <Text style={s.addBtnText}>+ Add</Text>
-          </TouchableOpacity>
+          {permissions.canAddMembers && (
+            <TouchableOpacity style={s.addBtn} onPress={() => router.push('/(staff)/add-member')}>
+              <Text style={s.addBtnText}>+ Add</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Search */}
@@ -100,9 +106,11 @@ export default function MembersScreen() {
               <View style={s.empty}>
                 <Text style={s.emptyIcon}>👥</Text>
                 <Text style={s.emptyText}>No members found</Text>
-                <TouchableOpacity style={s.emptyBtn} onPress={() => router.push('/(staff)/add-member')}>
-                  <Text style={s.emptyBtnText}>Add First Member</Text>
-                </TouchableOpacity>
+                {permissions.canAddMembers && (
+                  <TouchableOpacity style={s.emptyBtn} onPress={() => router.push('/(staff)/add-member')}>
+                    <Text style={s.emptyBtnText}>Add First Member</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             }
           />

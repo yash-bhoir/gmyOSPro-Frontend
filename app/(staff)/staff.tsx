@@ -7,6 +7,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
 import { useAppContext } from '@/store/AppContext';
+import { useStaffRole } from '@/hooks/useStaffRole';
 import { useToast } from '@/hooks/useToast';
 import api from '@/services/api';
 
@@ -33,6 +34,7 @@ const fmtDate = (d?: string) => d
 
 export default function StaffListScreen() {
   const { gymId } = useAppContext();
+  const { permissions } = useStaffRole();
   const toast = useToast();
 
   const [staff, setStaff]         = useState<any[]>([]);
@@ -136,14 +138,16 @@ export default function StaffListScreen() {
             </View>
           </View>
         </View>
-        <View style={s.staffActions}>
-          <TouchableOpacity style={s.actionBtn} onPress={() => handleChangeRole(item)}>
-            <Text style={s.actionBtnText}>Role</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.removeBtn} onPress={() => handleRemove(item)}>
-            <Text style={s.removeBtnText}>Remove</Text>
-          </TouchableOpacity>
-        </View>
+        {permissions.canManageStaff && (
+          <View style={s.staffActions}>
+            <TouchableOpacity style={s.actionBtn} onPress={() => handleChangeRole(item)}>
+              <Text style={s.actionBtnText}>Role</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.removeBtn} onPress={() => handleRemove(item)}>
+              <Text style={s.removeBtnText}>Remove</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     );
   };
@@ -157,9 +161,11 @@ export default function StaffListScreen() {
             <Text style={s.title}>Staff</Text>
             <Text style={s.sub}>{staff.filter(s => s.isActive).length} active members</Text>
           </View>
-          <TouchableOpacity style={s.inviteBtn} onPress={() => setModal(true)}>
-            <Text style={s.inviteBtnText}>+ Invite</Text>
-          </TouchableOpacity>
+          {permissions.canManageStaff && (
+            <TouchableOpacity style={s.inviteBtn} onPress={() => setModal(true)}>
+              <Text style={s.inviteBtnText}>+ Invite</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Role legend */}
@@ -188,17 +194,19 @@ export default function StaffListScreen() {
                 <Text style={s.emptyIcon}>👔</Text>
                 <Text style={s.emptyTitle}>No staff yet</Text>
                 <Text style={s.emptySub}>Invite your team to get started</Text>
-                <TouchableOpacity style={s.emptyBtn} onPress={() => setModal(true)}>
-                  <Text style={s.emptyBtnText}>Invite Staff</Text>
-                </TouchableOpacity>
+                {permissions.canManageStaff && (
+                  <TouchableOpacity style={s.emptyBtn} onPress={() => setModal(true)}>
+                    <Text style={s.emptyBtnText}>Invite Staff</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             }
           />
         )}
       </View>
 
-      {/* Invite Modal */}
-      <Modal visible={modal} transparent animationType="slide">
+      {/* Invite Modal — only rendered for users with canManageStaff */}
+      <Modal visible={modal && permissions.canManageStaff} transparent animationType="slide">
         <View style={s.overlay}>
           <View style={s.modalWrap}>
             <View style={s.modalHandle} />

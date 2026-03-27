@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Activi
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
 import { useAppContext } from '@/store/AppContext';
+import { useStaffRole } from '@/hooks/useStaffRole';
 import { useToast } from '@/hooks/useToast';
 import api from '@/services/api';
 
@@ -13,6 +14,7 @@ interface Plan {
 
 export default function PlansScreen() {
   const { gymId } = useAppContext();
+  const { permissions } = useStaffRole();
   const toast = useToast();
   const [plans, setPlans]     = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,9 +98,11 @@ export default function PlansScreen() {
             <Text style={s.title}>Membership Plans</Text>
             <Text style={s.sub}>{plans.length} plans configured</Text>
           </View>
-          <TouchableOpacity style={s.addBtn} onPress={openAdd}>
-            <Text style={s.addBtnText}>+ Add Plan</Text>
-          </TouchableOpacity>
+          {permissions.canEditPlans && (
+            <TouchableOpacity style={s.addBtn} onPress={openAdd}>
+              <Text style={s.addBtnText}>+ Add Plan</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {loading ? (
@@ -109,12 +113,14 @@ export default function PlansScreen() {
               <View style={s.empty}>
                 <Text style={s.emptyIcon}>📋</Text>
                 <Text style={s.emptyTitle}>No plans yet</Text>
+                {permissions.canEditPlans && (
                 <TouchableOpacity style={s.seedBtn} onPress={async () => {
                   await api.post(`/gyms/${gymId}/plans/seed`);
                   fetchPlans();
                 }}>
                   <Text style={s.seedBtnText}>Add Default Plans</Text>
                 </TouchableOpacity>
+              )}
               </View>
             )}
             {plans.map((plan) => (
@@ -140,6 +146,7 @@ export default function PlansScreen() {
                       {plan.isActive ? 'Active' : 'Inactive'}
                     </Text>
                   </View>
+                  {permissions.canEditPlans && (
                   <View style={s.planBtns}>
                     <TouchableOpacity style={s.editBtn} onPress={() => openEdit(plan)}>
                       <Text style={s.editBtnText}>Edit</Text>
@@ -148,6 +155,7 @@ export default function PlansScreen() {
                       <Text style={s.deleteBtnText}>Remove</Text>
                     </TouchableOpacity>
                   </View>
+                )}
                 </View>
               </View>
             ))}
@@ -155,8 +163,8 @@ export default function PlansScreen() {
         )}
       </View>
 
-      {/* Add/Edit Modal */}
-      <Modal visible={modal} transparent animationType="slide">
+      {/* Add/Edit Modal — only for users with canEditPlans */}
+      <Modal visible={modal && permissions.canEditPlans} transparent animationType="slide">
         <View style={s.modalOverlay}>
           <ScrollView contentContainerStyle={s.modalScroll} keyboardShouldPersistTaps="handled">
             <View style={s.modal}>

@@ -116,7 +116,7 @@ export default function AdminUsers() {
     if (!editName.trim()) { Alert.alert('Error', 'Name is required'); return; }
     setEditSaving(true);
     try {
-      await api.patch(`/admin/users/${editUser._id}/role`, { systemRole: editRole });
+      await api.patch(`/admin/users/${editUser._id}/role`, { systemRole: editRole, fullName: editName, email: editEmail || undefined });
       Alert.alert('Success', 'User updated');
       setEditModal(false);
       fetchData();

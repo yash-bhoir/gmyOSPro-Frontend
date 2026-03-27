@@ -54,7 +54,7 @@ const PERMISSIONS: Record<StaffRole, RolePermissions> = {
     canRecordPayment: true,  canViewReports:   false, canViewPlans:     true,
     canEditPlans:     false, canViewStaff:     false, canManageStaff:   false,
     canBroadcast:     false, canViewSettings:  true,  canEditGym:       false,
-    canAccessKiosk:   true,  canCreateClass:   false, canCancelClass:   false,
+    canAccessKiosk:   true,  canCreateClass:   true,  canCancelClass:   true,
   },
   accounts: {
     canViewMembers:   false, canAddMembers:    false, canEditMembers:   false,
@@ -62,7 +62,7 @@ const PERMISSIONS: Record<StaffRole, RolePermissions> = {
     canRecordPayment: true,  canViewReports:   true,  canViewPlans:     true,
     canEditPlans:     false, canViewStaff:     false, canManageStaff:   false,
     canBroadcast:     false, canViewSettings:  true,  canEditGym:       false,
-    canAccessKiosk:   false, canCreateClass:   false, canCancelClass:   false,
+    canAccessKiosk:   false, canCreateClass:   true,  canCancelClass:   true,
   },
 };
 

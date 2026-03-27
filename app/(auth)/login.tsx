@@ -37,7 +37,7 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [focused, setFocused] = useState<string | null>(null);
 
-  const { sendOtp, login } = useAuthContext();
+  const { sendOtp, updateUser } = useAuthContext();
   const toast = useToast();
 
   const handleSendOTP = async () => {
@@ -77,12 +77,10 @@ export default function LoginScreen() {
 
       const { data } = await api.post(endpoint, payload);
 
-      // Use the tokens returned from the API
-      await login(phone, '', undefined); // keep your existing logic if needed
-
       await storage.set(Config.TOKEN_KEY, data.data.accessToken);
       await storage.set(Config.REFRESH_TOKEN_KEY, data.data.refreshToken);
       await storage.set(Config.USER_KEY, JSON.stringify(data.data.user));
+      updateUser(data.data.user);
 
       toast.success(isRegister ? 'Account created!' : 'Welcome back!');
       router.replace('/');

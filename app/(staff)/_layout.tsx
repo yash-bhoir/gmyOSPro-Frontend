@@ -1,11 +1,31 @@
+import { useEffect } from 'react';
 import { Tabs } from 'expo-router';
+import { router } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { useStaffRole } from '@/hooks/useStaffRole';
+import { useAuthContext } from '@/store/AuthContext';
+import { useAppContext } from '@/store/AppContext';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function StaffLayout() {
   const { colors } = useTheme();
   const { permissions } = useStaffRole();
+  const { user } = useAuthContext();
+  const { gym, isLoadingGym, refreshGym } = useAppContext();
+
+  // Load gym on mount for gym_owner
+  useEffect(() => {
+    if (user?.role === 'gym_owner') refreshGym();
+  }, [user?.role]);
+
+  // Gate gym_owner on setup completion
+  useEffect(() => {
+    if (user?.role !== 'gym_owner' || isLoadingGym) return;
+    // No gym yet (self-registered, never created gym) OR gym exists but setup incomplete
+    if (!gym || !gym.isSetupComplete) {
+      router.replace('/(staff)/onboarding' as any);
+    }
+  }, [user?.role, gym, isLoadingGym]);
 
   return (
     <Tabs

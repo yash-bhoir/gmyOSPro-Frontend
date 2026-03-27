@@ -3,10 +3,10 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Colors } from '@/constants/colors';
+import { useAppContext } from '@/store/AppContext';
+import { useStaffRole } from '@/hooks/useStaffRole';
 import { useToast } from '@/hooks/useToast';
 import api from '@/services/api';
-
-const GYM_ID = 'default';
 const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 const daysLeft = (d?: string) => d ? Math.max(0, Math.ceil((new Date(d).getTime() - Date.now()) / 86400000)) : 0;
 
@@ -16,20 +16,24 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function MemberDetailScreen() {
   const { memberId } = useLocalSearchParams<{ memberId: string }>();
+  const { gymId } = useAppContext();
+  const { permissions } = useStaffRole();
   const [member, setMember]     = useState<any>(null);
   const [loading, setLoading]   = useState(true);
   const toast = useToast();
 
   useEffect(() => {
-    api.get(`/gyms/${GYM_ID}/members/${memberId}`)
+    if (!gymId) return;
+    api.get(`/gyms/${gymId}/members/${memberId}`)
       .then(({ data }) => setMember(data.data))
       .catch(() => toast.error('Failed to load member'))
       .finally(() => setLoading(false));
-  }, [memberId]);
+  }, [memberId, gymId]);
 
   const handleCheckin = async () => {
+    if (!gymId) return;
     try {
-      await api.post(`/gyms/${GYM_ID}/members/${memberId}/checkin`, { method: 'manual' });
+      await api.post(`/gyms/${gymId}/members/${memberId}/checkin`, { method: 'manual' });
       toast.success('Check-in recorded!');
     } catch (err: any) {
       toast.error('Check-in failed', err?.response?.data?.message);
@@ -42,7 +46,7 @@ export default function MemberDetailScreen() {
       {
         text: 'Confirm', onPress: async () => {
           try {
-            const { data } = await api.put(`/gyms/${GYM_ID}/members/${memberId}`, { status: newStatus });
+            const { data } = await api.put(`/gyms/${gymId}/members/${memberId}`, { status: newStatus });
             setMember(data.data);
             toast.success('Status updated');
           } catch { toast.error('Failed to update status'); }
@@ -63,9 +67,11 @@ export default function MemberDetailScreen() {
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()}><Text style={s.back}>← Back</Text></TouchableOpacity>
         <Text style={s.title}>Member Detail</Text>
-        <TouchableOpacity onPress={handleCheckin} style={s.checkinBtn}>
-          <Text style={s.checkinText}>Check In</Text>
-        </TouchableOpacity>
+        {permissions.canCheckIn && (
+          <TouchableOpacity onPress={handleCheckin} style={s.checkinBtn}>
+            <Text style={s.checkinText}>Check In</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
@@ -127,20 +133,24 @@ export default function MemberDetailScreen() {
           </>
         )}
 
-        {/* Status actions */}
-        <Text style={s.sectionTitle}>Actions</Text>
-        <View style={s.actionsCard}>
-          {[
-            { label: 'Mark Active',   status: 'active',    color: Colors.success },
-            { label: 'Freeze',        status: 'frozen',    color: Colors.warning },
-            { label: 'Mark Expired',  status: 'expired',   color: Colors.danger },
-            { label: 'Cancel',        status: 'cancelled', color: Colors.textMuted },
-          ].filter(a => a.status !== member.status).map((a) => (
-            <TouchableOpacity key={a.status} style={[s.actionBtn, { borderColor: a.color }]} onPress={() => handleStatusChange(a.status)}>
-              <Text style={[s.actionBtnText, { color: a.color }]}>{a.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {/* Status actions — only for users who can edit members */}
+        {permissions.canEditMembers && (
+          <>
+            <Text style={s.sectionTitle}>Actions</Text>
+            <View style={s.actionsCard}>
+              {[
+                { label: 'Mark Active',   status: 'active',    color: Colors.success },
+                { label: 'Freeze',        status: 'frozen',    color: Colors.warning },
+                { label: 'Mark Expired',  status: 'expired',   color: Colors.danger },
+                { label: 'Cancel',        status: 'cancelled', color: Colors.textMuted },
+              ].filter(a => a.status !== member.status).map((a) => (
+                <TouchableOpacity key={a.status} style={[s.actionBtn, { borderColor: a.color }]} onPress={() => handleStatusChange(a.status)}>
+                  <Text style={[s.actionBtnText, { color: a.color }]}>{a.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

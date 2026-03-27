@@ -62,6 +62,7 @@ export default function MemberLayout() {
             <Ionicons name="person-outline" size={size} color={color} />,
         }}
       />
+      <Tabs.Screen name="invoices" options={{ href: null }} />
     </Tabs>
   );
 }

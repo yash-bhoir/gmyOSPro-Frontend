@@ -46,16 +46,16 @@ export default function KioskScan() {
       );
 
       if (res.data.data?.result === 'success') {
-        router.replace({ pathname: '/(kiosk)success' as any, params: { memberId } });
+        router.replace({ pathname: '/(kiosk)/success' as any, params: { memberId } });
       } else {
         router.replace({
-          pathname: '/(kiosk)denied' as any,
+          pathname: '/(kiosk)/denied' as any,
           params: { reason: res.data.data?.denialReason || 'Membership issue' },
         });
       }
     } catch {
       router.replace({
-        pathname: '/(kiosk)denied' as any,
+        pathname: '/(kiosk)/denied' as any,
         params: { reason: 'Invalid QR code' },
       });
     } finally {

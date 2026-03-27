@@ -1,7 +1,8 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { storage } from '@/utils/storage';
+import { Config } from '@/constants/config';
 
-const API_URL = 'http://192.168.29.212:5000/api/v1';
+const API_URL = Config.API_URL;
 
 let isRefreshing = false;
 let failedQueue: Array<{ resolve: (token: string) => void; reject: (err: any) => void }> = [];
