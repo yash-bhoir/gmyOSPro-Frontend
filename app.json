@@ -14,46 +14,25 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.gymos.app",
-      "infoPlist": {
-        "NSCameraUsageDescription": "GymOS needs camera access to scan member QR codes at check-in.",
-        "NSPhotoLibraryUsageDescription": "GymOS needs photo library access to upload gym logo."
-      }
+      "bundleIdentifier": "com.gymos.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png",
         "backgroundColor": "#0A0A0A"
       },
       "package": "com.gymos.app",
       "versionCode": 1,
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.VIBRATE",
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE"
       ]
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store",
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "GymOS needs photo library access to upload gym logo.",
-          "cameraPermission": "GymOS needs camera access to capture gym logo."
-        }
-      ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/icon.png",
-          "color": "#6366F1",
-          "defaultChannel": "default"
-        }
-      ]
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true
